@@ -11,6 +11,8 @@ interface SpyCat {
 }
 
 export default function SpyCatsPage() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
   const [cats, setCats] = useState<SpyCat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,13 +27,65 @@ export default function SpyCatsPage() {
   const [editingCat, setEditingCat] = useState<number | null>(null);
   const [editSalary, setEditSalary] = useState('');
 
+  useEffect(() => {
+    fetchCats();
+  }, []);
+
+  const prettify = (s: string) => {
+    let msg = s.trim();
+
+    msg = msg.replace(/^body\./i, '');
+    msg = msg.replace(/_/g, ' ');
+
+    if (/enum/i.test(msg)) {
+      return 'Invalid breed. Please use a valid breed name.';
+    }
+    const m = msg.match(/invalid breed[:\s]*'?([^'"]+)'?/i);
+    if (m) {
+      return `Invalid breed: ${m[1]}. Please use a valid breed name.`;
+    }
+
+    msg = msg.replace(/value error[:,]?\s*/i, '');
+    msg = msg.replace(/^breed[:\s-]*/i, 'Invalid breed. ');
+    msg = msg.replace(/\s+/g, ' ').trim();
+
+    return msg.charAt(0).toUpperCase() + msg.slice(1);
+  };
+
+  const getApiErrorMessage = (data: any): string => {
+    if (!data) return 'Unknown error';
+    if (typeof data === 'string') return prettify(data);
+    if (data.detail) {
+      const d = data.detail;
+      if (typeof d === 'string') return prettify(d);
+      if (Array.isArray(d)) {
+        return d
+          .map((e: any) => {
+            const loc = Array.isArray(e.loc)
+              ? e.loc.filter((x: any) => typeof x === 'string').join('.')
+              : '';
+            const raw = e.msg || e.message || '';
+            const combined = loc ? `${loc}: ${raw}` : raw;
+            return prettify(combined);
+          })
+          .filter(Boolean)
+          .join('; ');
+      }
+      if (typeof d === 'object' && d.message) return prettify(d.message);
+    }
+    if (data.message) return prettify(data.message);
+    try { return prettify(JSON.stringify(data)); } catch { return 'Unknown error'; }
+  };
+
+
   const isFormInvalid =
     !formData.name.trim() ||
     !formData.breed.trim() ||
     formData.years_of_experience === '' ||
     Number.isNaN(parseInt(formData.years_of_experience, 10)) ||
     formData.salary === '' ||
-    Number.isNaN(parseFloat(formData.salary));
+    Number.isNaN(parseFloat(formData.salary)) ||
+    parseFloat(formData.salary) <= 0;
 
   const handleDelete = async (catId: number) => {
     if (!confirm('Are you sure you want to remove this spy cat?')) return;
@@ -51,8 +105,8 @@ export default function SpyCatsPage() {
     setError('');
     try {
       const newSalary = parseFloat(editSalary);
-      if (Number.isNaN(newSalary)) {
-        setError('Salary must be a number.');
+      if (Number.isNaN(newSalary) || newSalary <= 0) {
+        setError('Salary must be greater than 0');
         return;
       }
 
@@ -61,16 +115,15 @@ export default function SpyCatsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ salary: newSalary }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(getApiErrorMessage(data));
 
-      if (!res.ok) throw new Error('Failed to update salary');
-
-      const updatedCat: SpyCat = await res.json();
+      const updatedCat: SpyCat = data;
       setCats(prev => prev.map(c => (c.id === catId ? updatedCat : c)));
       setEditingCat(null);
       setEditSalary('');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to update salary. Please try again.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update salary.');
     }
   };
 
@@ -96,6 +149,11 @@ export default function SpyCatsPage() {
         throw new Error('Please fill all fields correctly.');
       }
 
+      if (payload.salary <= 0) {
+        throw new Error('Salary must be greater than 0');
+      }
+
+
       const res = await fetch(`${API_URL}/api/cats`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,7 +161,7 @@ export default function SpyCatsPage() {
       });
 
       const data: SpyCat = await res.json();
-      if (!res.ok) throw new Error((data as any)?.detail || 'Failed to create spy cat');
+      if (!res.ok) throw new Error(getApiErrorMessage(data));
 
       setCats(prev => [...prev, data]);
       setFormData({ name: '', years_of_experience: '', breed: '', salary: '' });
@@ -113,8 +171,6 @@ export default function SpyCatsPage() {
       setSubmitting(false);
     }
   };
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const fetchCats = async () => {
     try {
@@ -131,15 +187,13 @@ export default function SpyCatsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchCats();
-  }, []);
-
   const currentEditing = cats.find(c => c.id === editingCat);
+  const parsedEdit = parseFloat(editSalary);
   const isEditInvalid =
     editSalary === '' ||
-    Number.isNaN(parseFloat(editSalary)) ||
-    (currentEditing && parseFloat(editSalary) === currentEditing.salary);
+    Number.isNaN(parsedEdit) ||
+    parsedEdit <= 0 ||
+    (currentEditing && parsedEdit === currentEditing.salary);
 
   if (loading) {
     return (
@@ -222,7 +276,7 @@ export default function SpyCatsPage() {
 
               <button
                 type="submit"
-                disabled={submitting || isFormInvalid}
+                disabled={submitting}
                 className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
               >
                 {submitting ? 'Adding...' : 'Add Spy Cat'}
