@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SpyCat {
   id: number;
@@ -14,6 +14,27 @@ export default function SpyCatsPage() {
   const [cats, setCats] = useState<SpyCat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  const fetchCats = async () => {
+    try {
+      setError('');
+      const res = await fetch(`${API_URL}/api/cats`);
+      if (!res.ok) throw new Error('Failed to fetch cats');
+      const data: SpyCat[] = await res.json();
+      setCats(data);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load spy cats. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCats();
+  }, []);
 
   if (loading) {
     return (
@@ -38,4 +59,3 @@ export default function SpyCatsPage() {
     </div>
   );
 }
-
