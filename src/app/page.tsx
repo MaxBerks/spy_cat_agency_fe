@@ -22,6 +22,35 @@ export default function SpyCatsPage() {
   });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingCat, setEditingCat] = useState<number | null>(null);
+  const [editSalary, setEditSalary] = useState('');
+
+  const handleUpdateSalary = async (catId: number) => {
+    setError('');
+    try {
+      const newSalary = parseFloat(editSalary);
+      if (Number.isNaN(newSalary)) {
+        setError('Salary must be a number.');
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/cats/${catId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salary: newSalary }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update salary');
+
+      const updatedCat: SpyCat = await res.json();
+      setCats(prev => prev.map(c => (c.id === catId ? updatedCat : c)));
+      setEditingCat(null);
+      setEditSalary('');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update salary. Please try again.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,8 +230,36 @@ export default function SpyCatsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cat.years_of_experience} years</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cat.breed}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${cat.salary.toLocaleString()}
+                          {editingCat === cat.id ? (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={editSalary}
+                                onChange={(e) => setEditSalary(e.target.value)}
+                                className="w-28 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1 border"
+                                placeholder={cat.salary.toString()}
+                              />
+                              <button onClick={() => handleUpdateSalary(cat.id)} className="text-green-600 hover:text-green-900" title="Save">✓</button>
+                              <button onClick={() => { setEditingCat(null); setEditSalary(''); }} className="text-red-600 hover:text-red-900" title="Cancel">✕</button>
+                            </div>
+                          ) : (
+                            `$${cat.salary.toLocaleString()}`
+                          )}
                         </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
+                          {editingCat === cat.id ? null : (
+                            <button
+                              onClick={() => { setEditingCat(cat.id); setEditSalary(cat.salary.toString()); }}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </td>
+
                       </tr>
                     ))}
                   </tbody>
