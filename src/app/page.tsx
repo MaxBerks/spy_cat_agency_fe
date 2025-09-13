@@ -25,6 +25,20 @@ export default function SpyCatsPage() {
   const [editingCat, setEditingCat] = useState<number | null>(null);
   const [editSalary, setEditSalary] = useState('');
 
+  const handleDelete = async (catId: number) => {
+    if (!confirm('Are you sure you want to remove this spy cat?')) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/cats/${catId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete cat');
+
+      setCats(prev => prev.filter(c => c.id !== catId));
+    } catch (err) {
+      console.error(err);
+      setError('Failed to delete spy cat. They might have an active mission.');
+    }
+  };
+
   const handleUpdateSalary = async (catId: number) => {
     setError('');
     try {
@@ -127,7 +141,7 @@ export default function SpyCatsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow-xl rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h1 className="text-3xl font-bold text-gray-900">🐱 Spy Cat Agency</h1>
+            <h1 className="text-3xl font-bold text-gray-900">🐈‍⬛ Spy Cat Agency</h1>
             <p className="mt-1 text-sm text-gray-600">Manage your elite spy cats</p>
           </div>
 
@@ -241,8 +255,8 @@ export default function SpyCatsPage() {
                                 className="w-28 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1 border"
                                 placeholder={cat.salary.toString()}
                               />
-                              <button onClick={() => handleUpdateSalary(cat.id)} className="text-green-600 hover:text-green-900" title="Save">✓</button>
-                              <button onClick={() => { setEditingCat(null); setEditSalary(''); }} className="text-red-600 hover:text-red-900" title="Cancel">✕</button>
+                              <button onClick={() => handleUpdateSalary(cat.id)} className="text-green-600 hover:text-green-900" title="Save">Complete</button>
+                              <button onClick={() => { setEditingCat(null); setEditSalary(''); }} className="text-red-600 hover:text-red-900" title="Cancel">Discard</button>
                             </div>
                           ) : (
                             `$${cat.salary.toLocaleString()}`
@@ -251,12 +265,20 @@ export default function SpyCatsPage() {
 
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
                           {editingCat === cat.id ? null : (
-                            <button
-                              onClick={() => { setEditingCat(cat.id); setEditSalary(cat.salary.toString()); }}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              Edit
-                            </button>
+                            <>
+                              <button
+                                onClick={() => { setEditingCat(cat.id); setEditSalary(cat.salary.toString()); }}
+                                className="text-indigo-600 hover:text-indigo-900"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(cat.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </>
                           )}
                         </td>
 
