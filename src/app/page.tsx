@@ -25,6 +25,14 @@ export default function SpyCatsPage() {
   const [editingCat, setEditingCat] = useState<number | null>(null);
   const [editSalary, setEditSalary] = useState('');
 
+  const isFormInvalid =
+    !formData.name.trim() ||
+    !formData.breed.trim() ||
+    formData.years_of_experience === '' ||
+    Number.isNaN(parseInt(formData.years_of_experience, 10)) ||
+    formData.salary === '' ||
+    Number.isNaN(parseFloat(formData.salary));
+
   const handleDelete = async (catId: number) => {
     if (!confirm('Are you sure you want to remove this spy cat?')) return;
 
@@ -127,6 +135,12 @@ export default function SpyCatsPage() {
     fetchCats();
   }, []);
 
+  const currentEditing = cats.find(c => c.id === editingCat);
+  const isEditInvalid =
+    editSalary === '' ||
+    Number.isNaN(parseFloat(editSalary)) ||
+    (currentEditing && parseFloat(editSalary) === currentEditing.salary);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -146,7 +160,7 @@ export default function SpyCatsPage() {
           </div>
 
           {error && (
-            <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-md" role="alert">
               <p className="text-red-800">{error}</p>
             </div>
           )}
@@ -208,7 +222,7 @@ export default function SpyCatsPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || isFormInvalid}
                 className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
               >
                 {submitting ? 'Adding...' : 'Add Spy Cat'}
@@ -255,7 +269,7 @@ export default function SpyCatsPage() {
                                 className="w-28 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-1 border"
                                 placeholder={cat.salary.toString()}
                               />
-                              <button onClick={() => handleUpdateSalary(cat.id)} className="text-green-600 hover:text-green-900" title="Save">Complete</button>
+                              <button onClick={() => handleUpdateSalary(cat.id)} disabled={isEditInvalid} className="text-green-600 hover:text-green-900" title="Save">Confirm</button>
                               <button onClick={() => { setEditingCat(null); setEditSalary(''); }} className="text-red-600 hover:text-red-900" title="Cancel">Discard</button>
                             </div>
                           ) : (
