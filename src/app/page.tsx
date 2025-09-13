@@ -14,6 +14,54 @@ export default function SpyCatsPage() {
   const [cats, setCats] = useState<SpyCat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    years_of_experience: '',
+    breed: '',
+    salary: ''
+  });
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setSubmitting(true);
+
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        years_of_experience: parseInt(formData.years_of_experience, 10),
+        breed: formData.breed.trim(),
+        salary: parseFloat(formData.salary)
+      };
+
+      if (
+        !payload.name ||
+        Number.isNaN(payload.years_of_experience) ||
+        !payload.breed ||
+        Number.isNaN(payload.salary)
+      ) {
+        throw new Error('Please fill all fields correctly.');
+      }
+
+      const res = await fetch(`${API_URL}/api/cats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data: SpyCat = await res.json();
+      if (!res.ok) throw new Error((data as any)?.detail || 'Failed to create spy cat');
+
+      setCats(prev => [...prev, data]);
+      setFormData({ name: '', years_of_experience: '', breed: '', salary: '' });
+    } catch (err: any) {
+      setFormError(err?.message || 'Failed to add spy cat. Please check the breed name.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -44,6 +92,7 @@ export default function SpyCatsPage() {
     );
   }
 
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,6 +107,72 @@ export default function SpyCatsPage() {
               <p className="text-red-800">{error}</p>
             </div>
           )}
+
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold mb-4">Add New Spy Cat</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                    placeholder="Agent Whiskers"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Years of Experience</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.years_of_experience}
+                    onChange={(e) => setFormData({ ...formData, years_of_experience: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                    placeholder="5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Breed</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.breed}
+                    onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                    placeholder="Persian"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Salary ($)</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.salary}
+                    onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                    placeholder="50000"
+                  />
+                </div>
+              </div>
+
+              {formError && <div className="text-red-600 text-sm">{formError}</div>}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              >
+                {submitting ? 'Adding...' : 'Add Spy Cat'}
+              </button>
+            </form>
+          </div>
+
 
           <div className="p-6">
             <h2 className="text-xl font-semibold mb-4">
